@@ -10,6 +10,7 @@ import { FileText, Github } from "lucide-react";
 import { requestGeminiAudit } from "../utils/geminiAudit";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useSaveAudit } from "@/hooks/useAudits";
+import { fetchSolidityFilesFromGithubRepo, fetchFileContents, RepoSolidityFile } from "../utils/githubSolidity";
 
 const DUMMY_AUDIT_RESULT: AuditResult = {
   vulnerabilities: [
@@ -54,7 +55,9 @@ function setStoredApiKey(k: string) {
 
 export default function Index() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AuditResult | null>(null);
+  const [result, setResult] = useState(null as AuditResult | null);
+  const [multiResults, setMultiResults] = useState<{ [file: string]: AuditResult } | null>(null);
+  const [fileOrder, setFileOrder] = useState<string[]>([]);
   const [showKeyInput, setShowKeyInput] = useState(() => !getStoredApiKey());
   const [apiKey, setApiKey] = useState(getStoredApiKey());
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -76,19 +79,66 @@ export default function Index() {
     toast({ title: "API Key Saved", description: "You can now audit contracts live with Gemini!", variant: "default" });
   }
 
-  async function handleAudit({ mode, value }: { mode: "code" | "github"; value: string }) {
+  async function auditGithubRepo(val: string) {
     setLoading(true);
     setResult(null);
+    setMultiResults(null);
+    setFileOrder([]);
+    try {
+      // Fetch list of .sol files
+      const solFiles = await fetchSolidityFilesFromGithubRepo(val, 10);
+      if (!solFiles.length) {
+        setTimeout(() => {
+          setLoading(false);
+          toast({ title: "No Solidity files found", description: "The repository doesn't contain any .sol files.", variant: "destructive" });
+        }, 900);
+        return;
+      }
+      // Fetch contents
+      const filesWithContent = await fetchFileContents(solFiles);
+      // Limit to 2000 total lines across all files for prompt sanity
+      const totalLines = filesWithContent.reduce((sum, f) => sum + (f.content?.split("\n").length || 0), 0);
+      if (totalLines > 2000) {
+        setTimeout(() => {
+          setLoading(false);
+          toast({ title: "Repo too large", description: "Please audit a repo with fewer than 2000 total lines of Solidity code.", variant: "destructive" });
+        }, 800);
+        return;
+      }
+      // Audit each .sol file (sequential for rate limits)
+      const aggregated: { [path: string]: AuditResult } = {};
+      for (let file of filesWithContent) {
+        if (!file.content) continue;
+        let audit: AuditResult;
+        try {
+          audit = await requestGeminiAudit({ apiKey, solidityCode: file.content });
+        } catch (e: any) {
+          audit = DUMMY_AUDIT_RESULT;
+        }
+        aggregated[file.path] = audit;
+        // Optional: yield to UI between files
+        setMultiResults({ ...aggregated });
+        setFileOrder(filesWithContent.map((f) => f.path));
+      }
+      setMultiResults(aggregated);
+      setFileOrder(filesWithContent.map((f) => f.path));
+      setLoading(false);
+    } catch (e: any) {
+      setLoading(false);
+      toast({ title: "GitHub Audit Error", description: String(e?.message ?? e), variant: "destructive" });
+    }
+  }
 
-    // Support code mode only for Gemini
-    if (mode !== "code") {
-      setTimeout(() => {
-        toast({ title: "GitHub input not supported", description: "Live audits only work for pasted code at this time.", variant: "destructive" });
-        setResult(DUMMY_AUDIT_RESULT);
-        setLoading(false);
-      }, 1500);
+  async function handleAudit({ mode, value }: { mode: "code" | "github"; value: string }) {
+    setResult(null);
+    setMultiResults(null);
+    setFileOrder([]);
+    if (mode === "github") {
+      // New: Multi-file GitHub repo support!
+      await auditGithubRepo(value);
       return;
     }
+    setLoading(true);
     setCodeInput(value); // <-- store for code block
     if (!apiKey) {
       setTimeout(() => {
@@ -167,7 +217,13 @@ export default function Index() {
         </div>
       </Card>
       <div className="w-full max-w-5xl mx-auto">
-        <AuditResults loading={loading} result={result} code={codeInput} />
+        <AuditResults
+          loading={loading}
+          result={result}
+          code={codeInput}
+          multiResults={multiResults}
+          fileOrder={fileOrder}
+        />
       </div>
       <footer className="mt-16 text-sm text-muted-foreground opacity-70 text-center">
         Built with ❤️ using Lovable, AI, Solidity, and React &nbsp;—&nbsp; Demo only, not for production audits.

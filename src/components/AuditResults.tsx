@@ -1,6 +1,5 @@
-
 import React from "react";
-import { AlertTriangle, CheckCircle2, Wrench, Info, Code, Download } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Wrench, Info, Code, Download, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -30,13 +29,156 @@ const severityIcon = {
   low: <CheckCircle2 className="text-green-600 mr-2" size={20} />,
 };
 
+// Type for multi-file result:
+export type AggregatedAuditResult = {
+  [filePath: string]: AuditResult;
+};
+
+type MultiAuditResultsProps = {
+  multiResults?: AggregatedAuditResult | null;
+  fileOrder?: string[];
+  loading?: boolean;
+};
+
+// UI for displaying multi-file aggregated results:
+const MultiAuditResults: React.FC<MultiAuditResultsProps> = ({ multiResults, fileOrder = [], loading }) => {
+  if (loading) {
+    return (
+      <div className="min-h-[320px]">
+        <div className="h-8 bg-muted rounded w-1/3 mb-2 animate-pulse" />
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-4 bg-muted rounded animate-pulse w-5/6" />
+        ))}
+      </div>
+    );
+  }
+  if (!multiResults || fileOrder.length === 0) {
+    return (
+      <div className="text-muted-foreground flex flex-col items-center py-16">
+        <Info size={32} className="mb-2" />
+        <span>Audit results will appear here.</span>
+      </div>
+    );
+  }
+
+  // Show summary (files analyzed, total vulnerabilities)
+  const totalVulns = fileOrder.reduce(
+    (sum, fp) => sum + (multiResults[fp]?.vulnerabilities?.length || 0),
+    0
+  );
+
+  return (
+    <div className="flex flex-col gap-10 w-full">
+      <div className="mb-3">
+        <span className="font-semibold">{fileOrder.length}</span> Solidity file{fileOrder.length !== 1 ? "s" : ""} analyzed.<br />
+        <span className={totalVulns === 0 ? "text-green-600" : "text-red-600 font-semibold"}>
+          {totalVulns} vulnerabilit{totalVulns === 1 ? "y" : "ies"} detected.
+        </span>
+      </div>
+      {fileOrder.map((filePath) => {
+        const file = multiResults[filePath];
+        if (!file) return null;
+        return (
+          <Card key={filePath} className="p-6 shadow border-2 border-primary/30 mb-2">
+            <h3 className="text-md font-bold flex items-center mb-2 gap-2">
+              <FileText className="text-primary" size={18} />
+              <span className="truncate max-w-[60vw]">{filePath}</span>
+            </h3>
+            {/* Vulnerabilities */}
+            <div className="mb-2">
+              <h4 className="text-base font-semibold flex items-center gap-2 mb-2">
+                <AlertTriangle className="text-orange-500" /> Vulnerabilities
+              </h4>
+              {file.vulnerabilities.length === 0 ? (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle2 className="mr-2" /> No vulnerabilities detected.
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {file.vulnerabilities.map((vuln, idx) => (
+                    <li key={idx} className="flex items-center">
+                      {severityIcon[vuln.severity]}
+                      <span className={`font-semibold pr-2 ${severityColor[vuln.severity]}`}>
+                        {vuln.type}
+                      </span>
+                      <span className="text-sm text-muted-foreground italic pr-2">
+                        [line {vuln.line}]
+                      </span>
+                      <span>{vuln.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {/* Explanations */}
+            <div className="mb-2">
+              <h4 className="text-base font-semibold flex items-center gap-2 mb-2">
+                <Info className="text-blue-500" /> Line-by-Line Explanation
+              </h4>
+              <ol className="space-y-2">
+                {file.explanations.map((exp, idx) => (
+                  <li key={idx} className="pl-2 border-l-2 border-accent">
+                    <span className="font-mono font-bold text-xs pr-2">Line {exp.line}:</span>
+                    <span>{exp.explanation}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {/* Suggested Fixes */}
+            <div>
+              <h4 className="text-base font-semibold flex items-center gap-2 mb-2">
+                <Wrench className="text-emerald-500" /> Suggested Fixes
+              </h4>
+              <ul className="space-y-1">
+                {file.suggestedFixes.length === 0 ? (
+                  <li className="text-muted-foreground">No fixes necessary.</li>
+                ) : (
+                  file.suggestedFixes.map((fix, idx) => (
+                    <li key={idx} className="pl-2 border-l-2 border-emerald-600">
+                      <span className="font-mono font-bold text-xs pr-2">Line {fix.line}:</span>
+                      <span>{fix.fix}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+};
+
 type AuditResultsProps = {
   code?: string;
   result?: AuditResult | null;
   loading?: boolean;
 };
 
-export const AuditResults: React.FC<AuditResultsProps> = ({ code, result, loading }) => {
+// MODIFY export: Add multi-file support to AuditResults
+type ExtendedAuditResultsProps = {
+  code?: string;
+  result?: AuditResult | null;
+  multiResults?: AggregatedAuditResult | null;
+  fileOrder?: string[];
+  loading?: boolean;
+};
+
+export const AuditResults: React.FC<ExtendedAuditResultsProps> = (props) => {
+  // Show multi-file results if present
+  if (props.multiResults && props.fileOrder && props.fileOrder.length > 0) {
+    return (
+      <MultiAuditResults
+        multiResults={props.multiResults}
+        fileOrder={props.fileOrder}
+        loading={props.loading}
+      />
+    );
+  }
+  // Fallback: old single-file results
+  // Just call single file AuditResults render logic here:
+  const { code, result, loading } = props as AuditResultsProps;
+
   // Download handler
   const handleDownloadReport = () => {
     if (!result) return;
@@ -184,4 +326,3 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ code, result, loadin
 };
 
 export default AuditResults;
-
