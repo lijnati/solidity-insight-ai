@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, Wrench, Info, Code } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -66,7 +65,7 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ code, result, loadin
   }
 
   return (
-    <Accordion type="multiple" className="flex flex-col gap-8 w-full" collapsible>
+    <Accordion type="multiple" className="flex flex-col gap-8 w-full">
       {/* Solidity Code Viewer */}
       {code && (
         <Card className="p-4 shadow border-2 border-primary/10">

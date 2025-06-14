@@ -1,10 +1,12 @@
 
 import React, { useMemo } from "react";
 import hljs from "highlight.js/lib/core";
-import solidity from "highlight.js/lib/languages/solidity";
 import "highlight.js/styles/github-dark.css";
+// Import Solidity highlighting language from highlightjs-solidity
+import hljsDefineSolidity from "highlightjs-solidity";
 
-hljs.registerLanguage("solidity", solidity);
+// Register the Solidity language
+hljsDefineSolidity(hljs);
 
 export type CodeBlockProps = {
   code: string;
