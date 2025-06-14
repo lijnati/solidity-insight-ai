@@ -2,16 +2,18 @@
 export async function requestGeminiAudit({
   apiKey,
   solidityCode,
+  model = "gemini-1.5-flash-latest",
 }: {
   apiKey: string;
   solidityCode: string;
+  model?: string;
 }): Promise<{
   vulnerabilities: { line: number; type: string; message: string; severity: "high" | "medium" | "low" }[];
   explanations: { line: number; explanation: string }[];
   suggestedFixes: { line: number; fix: string }[];
 }> {
-  // Gemini expects model and prompt in its API format: see https://ai.google.dev/gemini-api/docs/api/rest/v1/models/generateContent
-  const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
+  // Use the selected Gemini model in the endpoint URL
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const prompt = `
 You are a Solidity smart contract auditor.
 Analyze the Solidity contract below for security vulnerabilities.
@@ -72,3 +74,4 @@ ${solidityCode}
     throw new Error("Could not parse Gemini audit response");
   }
 }
+

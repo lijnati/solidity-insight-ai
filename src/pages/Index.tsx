@@ -1,4 +1,3 @@
-
 // Solidity Audit Tool: Users can paste Solidity code or a GitHub link and get a code audit.
 
 import React, { useState, useRef } from "react";
@@ -12,6 +11,7 @@ import { requestGeminiAudit } from "../utils/geminiAudit";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useSaveAudit } from "@/hooks/useAudits";
 import { fetchSolidityFilesFromGithubRepo, fetchFileContents, RepoSolidityFile } from "../utils/githubSolidity";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 const DUMMY_AUDIT_RESULT: AuditResult = {
   vulnerabilities: [
@@ -39,6 +39,18 @@ const DUMMY_AUDIT_RESULT: AuditResult = {
   ],
 };
 
+// Define available Gemini models
+const GEMINI_MODELS = [
+  {
+    value: "gemini-1.5-flash-latest",
+    label: "Gemini 1.5 Flash (fast, less accurate)",
+  },
+  {
+    value: "gemini-1.5-pro-latest",
+    label: "Gemini 1.5 Pro (better results)",
+  },
+];
+
 function getStoredApiKey() {
   try {
     // key is now for Gemini, store as "gemini-key"
@@ -54,6 +66,19 @@ function setStoredApiKey(k: string) {
   } catch {}
 }
 
+function getStoredGeminiModel() {
+  try {
+    return localStorage.getItem("gemini-model") || GEMINI_MODELS[0].value;
+  } catch {
+    return GEMINI_MODELS[0].value;
+  }
+}
+function setStoredGeminiModel(model: string) {
+  try {
+    localStorage.setItem("gemini-model", model);
+  } catch {}
+}
+
 export default function Index() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null as AuditResult | null);
@@ -64,6 +89,11 @@ export default function Index() {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const keyInputRef = useRef<HTMLInputElement>(null);
   const [codeInput, setCodeInput] = useState("");
+  const [geminiModel, setGeminiModel_] = useState(getStoredGeminiModel());
+  const setGeminiModel = (val: string) => {
+    setGeminiModel_(val);
+    setStoredGeminiModel(val);
+  };
   const { user } = useSupabaseAuth();
   const saveAudit = useSaveAudit();
 
@@ -112,7 +142,7 @@ export default function Index() {
         if (!file.content) continue;
         let audit: AuditResult;
         try {
-          audit = await requestGeminiAudit({ apiKey, solidityCode: file.content });
+          audit = await requestGeminiAudit({ apiKey, solidityCode: file.content, model: geminiModel });
         } catch (e: any) {
           audit = DUMMY_AUDIT_RESULT;
         }
@@ -152,7 +182,8 @@ export default function Index() {
     try {
       const audit = await requestGeminiAudit({
         apiKey,
-        solidityCode: value
+        solidityCode: value,
+        model: geminiModel,
       });
       setResult(audit);
 
@@ -179,6 +210,20 @@ export default function Index() {
           <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
             Instantly audit your Solidity smart contracts for vulnerabilities. Paste your code or a public GitHub link, and get AI-powered findings, explanations, and suggested fixes.
           </p>
+          {/* Gemini Model Select */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 mb-1 mt-1">
+            <div className="text-sm font-semibold text-muted-foreground mr-2 whitespace-nowrap">AI Model</div>
+            <Select value={geminiModel} onValueChange={setGeminiModel}>
+              <SelectTrigger className="w-64 max-w-full bg-secondary border shadow">
+                <SelectValue placeholder="Select Model" />
+              </SelectTrigger>
+              <SelectContent>
+                {GEMINI_MODELS.map((m) => (
+                  <SelectItem value={m.value} key={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {/* API Key Input */}
           {showKeyInput ? (
             <div className="bg-secondary border border-muted rounded-lg p-3 flex flex-col md:flex-row items-center gap-3 mb-2">
