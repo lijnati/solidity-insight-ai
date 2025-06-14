@@ -1,7 +1,8 @@
 
 import React from "react";
-import { AlertTriangle, CheckCircle2, Wrench, Info, Code } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Wrench, Info, Code, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export type Vulnerability = {
   line: number;
@@ -36,6 +37,36 @@ type AuditResultsProps = {
 };
 
 export const AuditResults: React.FC<AuditResultsProps> = ({ code, result, loading }) => {
+  // Download handler
+  const handleDownloadReport = () => {
+    if (!result) return;
+    const dataForExport = {
+      code: code || "",
+      vulnerabilities: result.vulnerabilities,
+      explanations: result.explanations,
+      suggestedFixes: result.suggestedFixes,
+      generatedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(dataForExport, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    // File name: "solidity-audit-report-YYYYMMDD-HHMMSS.json"
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const fileName = `solidity-audit-report-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 250);
+  };
+
   if (loading) {
     // Loading skeleton, only basic for now
     return (
@@ -63,9 +94,21 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ code, result, loadin
       {/* Solidity Code Viewer */}
       {code && (
         <Card className="p-4 shadow border-2 border-primary/10">
-          <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Code className="text-orange-400" /> Solidity Code Audited
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xl font-semibold flex items-center gap-2">
+              <Code className="text-orange-400" /> Solidity Code Audited
+            </h3>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleDownloadReport}
+              size="sm"
+              title="Download report as JSON"
+            >
+              <Download size={18} />
+              Download Report
+            </Button>
+          </div>
           <pre className="whitespace-pre-wrap bg-[#21272c] rounded font-mono text-white text-sm p-4 overflow-x-auto">
             {code}
           </pre>
@@ -141,3 +184,4 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ code, result, loadin
 };
 
 export default AuditResults;
+
