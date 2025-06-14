@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Github } from "lucide-react";
 import { requestGeminiAudit } from "../utils/geminiAudit";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useSaveAudit } from "@/hooks/useAudits";
 
 const DUMMY_AUDIT_RESULT: AuditResult = {
   vulnerabilities: [
@@ -58,6 +60,8 @@ export default function Index() {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const keyInputRef = useRef<HTMLInputElement>(null);
   const [codeInput, setCodeInput] = useState("");
+  const { user } = useSupabaseAuth();
+  const saveAudit = useSaveAudit();
 
   function handleSaveKey() {
     // Gemini keys can begin with "AI", "GEMINI", etc. Check basic length.
@@ -100,6 +104,11 @@ export default function Index() {
         solidityCode: value
       });
       setResult(audit);
+
+      // Save audit for user if logged in and not dummy result
+      if (user && audit && mode === "code") {
+        saveAudit.mutate({ code: value, report: audit });
+      }
     } catch (e: any) {
       setResult(DUMMY_AUDIT_RESULT);
       toast({ title: "Gemini Error", description: String(e?.message ?? e), variant: "destructive" });

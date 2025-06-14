@@ -15,6 +15,14 @@ export default function Header() {
         Solidity Audit Tool
       </Link>
       <div className="flex items-center gap-6">
+        {user && (
+          <Link
+            to="/my-audits"
+            className="flex items-center px-2 py-1 rounded hover:bg-accent transition"
+          >
+            My Audits
+          </Link>
+        )}
         {user ? (
           <>
             <Link to="/profile" className="flex items-center gap-2 hover:underline">
