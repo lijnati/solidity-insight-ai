@@ -1,10 +1,8 @@
-
 import React, { useState, useMemo } from "react";
 import { useUserAudits } from "@/hooks/useAudits";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, Download, Loader, Filter, Search } from "lucide-react";
 import { format } from "date-fns";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
@@ -45,11 +43,11 @@ const AuditItem = ({ audit }: { audit: any }) => {
   }
 
   return (
-    <Card className="p-4 flex flex-col gap-2">
-      <div className="flex flex-col gap-1 md:flex-row md:items-center md:gap-4">
+    <Card className="p-3 flex flex-col gap-2 sm:p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex items-center gap-2">
           <FileText className="text-primary" size={20} />
-          <span className="text-lg font-semibold">
+          <span className="text-base sm:text-lg font-semibold">
             Audit from {format(new Date(audit.created_at), "PPpp")}
           </span>
         </div>
@@ -72,7 +70,7 @@ const AuditItem = ({ audit }: { audit: any }) => {
         {audit.source_code.slice(0, 350)}
         {audit.source_code.length > 350 ? "..." : ""}
       </pre>
-      <Button size="sm" variant="outline" onClick={handleDownload} className="w-fit gap-2">
+      <Button size="sm" variant="outline" onClick={handleDownload} className="w-fit mt-1 gap-2">
         <Download size={16} />
         Download Report
       </Button>
@@ -133,7 +131,7 @@ export default function MyAudits() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center mt-20 text-lg">
+      <div className="flex flex-col items-center mt-20 text-base sm:text-lg">
         Please{" "}
         <span className="text-blue-600 underline mx-1">
           <a href="/auth">log in</a>
@@ -148,12 +146,11 @@ export default function MyAudits() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 flex flex-col gap-6 min-h-[300px]">
-      <h2 className="text-2xl font-bold mb-4">My Past Solidity Audits</h2>
-
+    <div className="max-w-4xl mx-auto mt-8 flex flex-col gap-6 min-h-[300px] px-2">
+      <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4 text-left">My Past Solidity Audits</h2>
       {/* Search and filter UI */}
-      <Card className="p-4 mb-2 flex flex-col gap-4 md:flex-row md:items-end md:gap-4">
-        <div className="flex flex-col gap-1 w-full md:w-1/2">
+      <Card className="p-3 sm:p-4 mb-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+        <div className="flex flex-col gap-1 w-full sm:w-1/2">
           <label className="text-xs font-semibold mb-1 flex items-center gap-1">
             <Search size={16} className="text-muted-foreground" />
             Search
@@ -172,7 +169,7 @@ export default function MyAudits() {
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="w-40"
+            className="w-32 sm:w-40"
             max={dateTo || undefined}
           />
         </div>
@@ -182,11 +179,11 @@ export default function MyAudits() {
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="w-40"
+            className="w-32 sm:w-40"
             min={dateFrom || undefined}
           />
         </div>
-        <div className="flex flex-col gap-1 min-w-[110px]">
+        <div className="flex flex-col gap-1 min-w-[80px] sm:min-w-[110px]">
           <label className="text-xs font-semibold mb-1">
             <Filter size={16} className="text-muted-foreground" /> Severity
           </label>
@@ -213,19 +210,19 @@ export default function MyAudits() {
               setDateTo("");
               setSeverity("");
             }}
-            className="h-10 mt-6 md:mt-0"
+            className="h-9 sm:h-10 mt-3 sm:mt-0"
           >
             Reset
           </Button>
         )}
       </Card>
 
-      {(!filtered || filtered.length === 0) ? (
-        <Card className="p-8 text-xl text-muted-foreground flex justify-center">
+      {!filtered || filtered.length === 0 ? (
+        <Card className="p-8 text-base sm:text-xl text-muted-foreground flex justify-center">
           No past audits found.
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           {filtered.map((audit) => (
             <AuditItem audit={audit} key={audit.id} />
           ))}

@@ -1,3 +1,4 @@
+
 // Solidity Audit Tool: Users can paste Solidity code or a GitHub link and get a code audit.
 
 import React, { useState, useRef } from "react";
@@ -168,30 +169,30 @@ export default function Index() {
   }
 
   return (
-    <div className="bg-background min-h-screen w-full pt-12 px-0 flex flex-col items-center">
+    <div className="bg-background min-h-screen w-full pt-3 px-0 flex flex-col items-center">
       <Card className="w-full max-w-5xl mx-auto mb-10 shadow-2xl border-2 border-accent/30">
-        <div className="p-8 flex flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <Rocket size={32} className="text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">Solidity Smart Contract Auditor</h1>
+        <div className="p-3 md:p-8 flex flex-col gap-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <Rocket size={32} className="text-primary mb-1 sm:mb-0" />
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Solidity Smart Contract Auditor</h1>
           </div>
-          <p className="text-muted-foreground text-lg max-w-2xl">
+          <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
             Instantly audit your Solidity smart contracts for vulnerabilities. Paste your code or a public GitHub link, and get AI-powered findings, explanations, and suggested fixes.
           </p>
           {/* API Key Input */}
           {showKeyInput ? (
-            <div className="bg-secondary border border-muted rounded-lg p-4 flex flex-col md:flex-row items-center gap-3 mb-2">
+            <div className="bg-secondary border border-muted rounded-lg p-3 flex flex-col md:flex-row items-center gap-3 mb-2">
               <input
                 ref={keyInputRef}
                 type="password"
-                className="border rounded px-3 py-2 w-full md:w-96 font-mono"
+                className="border rounded px-3 py-2 w-full md:w-96 font-mono text-sm"
                 placeholder="Enter your Gemini API Key"
                 value={apiKeyInput}
                 onChange={e => setApiKeyInput(e.target.value)}
                 autoFocus
               />
               <button
-                className="bg-primary text-primary-foreground px-5 py-2 rounded shadow font-semibold hover:bg-primary/80 transition"
+                className="bg-primary text-primary-foreground px-5 py-2 rounded shadow font-semibold hover:bg-primary/80 transition w-full md:w-auto"
                 onClick={handleSaveKey}
                 type="button"
               >
@@ -216,7 +217,7 @@ export default function Index() {
           />
         </div>
       </Card>
-      <div className="w-full max-w-5xl mx-auto">
+      <div className="w-full max-w-5xl mx-auto px-0 sm:px-2">
         <AuditResults
           loading={loading}
           result={result}
@@ -225,9 +226,10 @@ export default function Index() {
           fileOrder={fileOrder}
         />
       </div>
-      <footer className="mt-16 text-sm text-muted-foreground opacity-70 text-center">
+      <footer className="mt-10 mb-3 text-xs sm:text-sm text-muted-foreground opacity-70 text-center px-2">
         Built with ❤️ using Lovable, AI, Solidity, and React &nbsp;—&nbsp; Demo only, not for production audits.
       </footer>
     </div>
   );
 }
+// NOTE: This file is getting very large (~240 lines)! For maintainability and performance, please consider splitting into smaller components.
