@@ -57,6 +57,7 @@ export default function Index() {
   const [apiKey, setApiKey] = useState(getStoredApiKey());
   const [apiKeyInput, setApiKeyInput] = useState("");
   const keyInputRef = useRef<HTMLInputElement>(null);
+  const [codeInput, setCodeInput] = useState("");
 
   function handleSaveKey() {
     // Gemini keys can begin with "AI", "GEMINI", etc. Check basic length.
@@ -75,7 +76,7 @@ export default function Index() {
     setLoading(true);
     setResult(null);
 
-    // Only support code mode in this step for Gemini
+    // Support code mode only for Gemini
     if (mode !== "code") {
       setTimeout(() => {
         toast({ title: "GitHub input not supported", description: "Live audits only work for pasted code at this time.", variant: "destructive" });
@@ -84,6 +85,7 @@ export default function Index() {
       }, 1500);
       return;
     }
+    setCodeInput(value); // <-- store for code block
     if (!apiKey) {
       setTimeout(() => {
         setResult(DUMMY_AUDIT_RESULT);
@@ -99,7 +101,7 @@ export default function Index() {
       });
       setResult(audit);
     } catch (e: any) {
-      setResult(DUMMY_AUDIT_RESULT); // fallback to dummy
+      setResult(DUMMY_AUDIT_RESULT);
       toast({ title: "Gemini Error", description: String(e?.message ?? e), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -149,11 +151,14 @@ export default function Index() {
               </button>
             </div>
           )}
-          <AuditInput loading={loading} onAudit={handleAudit} />
+          <AuditInput
+            loading={loading}
+            onAudit={handleAudit}
+          />
         </div>
       </Card>
       <div className="w-full max-w-5xl mx-auto">
-        <AuditResults loading={loading} result={result} />
+        <AuditResults loading={loading} result={result} code={codeInput} />
       </div>
       <footer className="mt-16 text-sm text-muted-foreground opacity-70 text-center">
         Built with ❤️ using Lovable, AI, Solidity, and React &nbsp;—&nbsp; Demo only, not for production audits.
