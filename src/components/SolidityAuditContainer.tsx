@@ -1,15 +1,16 @@
-
 import React, { useState, useRef } from "react";
 import { AuditInput } from "./AuditInput";
 import { AuditResults, AuditResult } from "./AuditResults";
 import { Rocket } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { requestGeminiAudit } from "../utils/geminiAudit";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useSaveAudit } from "@/hooks/useAudits";
 import { fetchSolidityFilesFromGithubRepo, fetchFileContents } from "../utils/githubSolidity";
-import GeminiModelSelect from "./GeminiModelSelect";
+import { AIModelSelect } from "./AIModelSelect";
+import { ALL_AI_MODELS, AIVendor, getModelsForVendor } from "../utils/aiModels";
+import { getStoredApiKey, setStoredApiKey, requestOpenAIAudit, requestClaudeAudit, requestGrokAudit } from "../utils/aiApi";
+import { requestGeminiAudit } from "../utils/geminiAudit";
 
 const DUMMY_AUDIT_RESULT: AuditResult = {
   vulnerabilities: [
@@ -37,41 +38,29 @@ const DUMMY_AUDIT_RESULT: AuditResult = {
   ],
 };
 
-const GEMINI_MODELS = [
-  {
-    value: "gemini-1.5-flash-latest",
-    label: "Gemini 1.5 Flash (fast, less accurate)",
-  },
-  {
-    value: "gemini-1.5-pro-latest",
-    label: "Gemini 1.5 Pro (better results)",
-  },
-];
-
-function getStoredApiKey() {
+function getStoredModelVendor() {
   try {
-    return localStorage.getItem("gemini-key") || "";
+    // Try from localStorage, fallback to Gemini as default
+    return localStorage.getItem("ai-vendor") as AIVendor || "Gemini";
   } catch {
-    return "";
+    return "Gemini";
   }
 }
-
-function setStoredApiKey(k: string) {
+function setStoredModelVendor(vendor: AIVendor) {
   try {
-    localStorage.setItem("gemini-key", k);
+    localStorage.setItem("ai-vendor", vendor);
   } catch {}
 }
-
-function getStoredGeminiModel() {
+function getStoredModel(vendor: AIVendor) {
   try {
-    return localStorage.getItem("gemini-model") || GEMINI_MODELS[0].value;
+    return localStorage.getItem(`ai-model-${vendor}`) || getModelsForVendor(vendor)[0]?.value || "";
   } catch {
-    return GEMINI_MODELS[0].value;
+    return getModelsForVendor(vendor)[0]?.value || "";
   }
 }
-function setStoredGeminiModel(model: string) {
+function setStoredModel(vendor: AIVendor, model: string) {
   try {
-    localStorage.setItem("gemini-model", model);
+    localStorage.setItem(`ai-model-${vendor}`, model);
   } catch {}
 }
 
@@ -80,29 +69,61 @@ export default function SolidityAuditContainer() {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [multiResults, setMultiResults] = useState<{ [file: string]: AuditResult } | null>(null);
   const [fileOrder, setFileOrder] = useState<string[]>([]);
-  const [showKeyInput, setShowKeyInput] = useState(() => !getStoredApiKey());
-  const [apiKey, setApiKey] = useState(getStoredApiKey());
+  const [aiVendor, setAIVendor_] = useState<AIVendor>(getStoredModelVendor());
+  const [model, setModel_] = useState(getStoredModel(getStoredModelVendor()));
+  const [showKeyInput, setShowKeyInput] = useState(() => !getStoredApiKey(getStoredModelVendor()));
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [apiKey, setApiKey] = useState(getStoredApiKey(aiVendor));
   const keyInputRef = useRef<HTMLInputElement>(null);
   const [codeInput, setCodeInput] = useState("");
-  const [geminiModel, setGeminiModel_] = useState(getStoredGeminiModel());
-  const setGeminiModel = (val: string) => {
-    setGeminiModel_(val);
-    setStoredGeminiModel(val);
-  };
   const { user } = useSupabaseAuth();
   const saveAudit = useSaveAudit();
 
+  // Sync local storage on vendor/model change
+  const setAIVendor = (v: AIVendor) => {
+    setAIVendor_(v);
+    setStoredModelVendor(v);
+    // Reset model to default for vendor if current invalid
+    const ms = getModelsForVendor(v)[0]?.value || "";
+    setModel_(ms);
+    setStoredModel(v, ms);
+    // Handle API key per vendor
+    const storedKey = getStoredApiKey(v);
+    setApiKey(storedKey);
+    setShowKeyInput(!storedKey);
+    setApiKeyInput("");
+  };
+  const setModel = (m: string) => {
+    setModel_(m);
+    setStoredModel(aiVendor, m);
+  };
+
   function handleSaveKey() {
-    if (!apiKeyInput || apiKeyInput.length < 24) {
-      toast({ title: "Invalid Gemini API Key", description: "Gemini API keys are typically at least 24 characters.", variant: "destructive" });
+    if (!apiKeyInput || apiKeyInput.length < 10) {
+      toast({ title: "Invalid API Key", description: `${aiVendor} API keys are typically at least 10 characters.`, variant: "destructive" });
       keyInputRef.current?.focus();
       return;
     }
-    setStoredApiKey(apiKeyInput);
+    setStoredApiKey(aiVendor, apiKeyInput);
     setApiKey(apiKeyInput);
     setShowKeyInput(false);
-    toast({ title: "API Key Saved", description: "You can now audit contracts live with Gemini!", variant: "default" });
+    toast({ title: "API Key Saved", description: `You can now audit contracts with ${aiVendor}!`, variant: "default" });
+  }
+
+  // Dynamic auditFn selection
+  async function vendorAuditFn({ solidityCode }: { solidityCode: string }): Promise<AuditResult> {
+    switch (aiVendor) {
+      case "Gemini":
+        return await requestGeminiAudit({ apiKey, solidityCode, model });
+      case "OpenAI":
+        return await requestOpenAIAudit({ apiKey, solidityCode, model });
+      case "Claude":
+        return await requestClaudeAudit({ apiKey, solidityCode, model });
+      case "Grok":
+        return await requestGrokAudit({ apiKey, solidityCode, model });
+      default:
+        return DUMMY_AUDIT_RESULT;
+    }
   }
 
   async function auditGithubRepo(val: string) {
@@ -133,7 +154,7 @@ export default function SolidityAuditContainer() {
         if (!file.content) continue;
         let audit: AuditResult;
         try {
-          audit = await requestGeminiAudit({ apiKey, solidityCode: file.content, model: geminiModel });
+          audit = await vendorAuditFn({ solidityCode: file.content });
         } catch {
           audit = DUMMY_AUDIT_RESULT;
         }
@@ -165,15 +186,11 @@ export default function SolidityAuditContainer() {
         setResult(DUMMY_AUDIT_RESULT);
         setLoading(false);
       }, 1500);
-      toast({ title: "No API key set", description: "Please enter your Gemini key above for live auditing.", variant: "destructive" });
+      toast({ title: "No API key set", description: `Please enter your ${aiVendor} key above for live auditing.`, variant: "destructive" });
       return;
     }
     try {
-      const audit = await requestGeminiAudit({
-        apiKey,
-        solidityCode: value,
-        model: geminiModel,
-      });
+      const audit = await vendorAuditFn({ solidityCode: value });
       setResult(audit);
 
       if (user && audit && mode === "code") {
@@ -181,7 +198,7 @@ export default function SolidityAuditContainer() {
       }
     } catch (e: any) {
       setResult(DUMMY_AUDIT_RESULT);
-      toast({ title: "Gemini Error", description: String(e?.message ?? e), variant: "destructive" });
+      toast({ title: `${aiVendor} Error`, description: String(e?.message ?? e), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -198,11 +215,12 @@ export default function SolidityAuditContainer() {
           <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
             Instantly audit your Solidity smart contracts for vulnerabilities. Paste your code or a public GitHub link, and get AI-powered findings, explanations, and suggested fixes.
           </p>
-          {/* Gemini Model Select */}
-          <GeminiModelSelect
-            models={GEMINI_MODELS}
-            value={geminiModel}
-            onChange={setGeminiModel}
+          {/* AI Vendor/Model Select */}
+          <AIModelSelect
+            vendor={aiVendor}
+            setVendor={setAIVendor}
+            model={model}
+            setModel={setModel}
           />
           {/* API Key Input */}
           {showKeyInput ? (
@@ -211,7 +229,7 @@ export default function SolidityAuditContainer() {
                 ref={keyInputRef}
                 type="password"
                 className="border rounded px-3 py-2 w-full md:w-96 font-mono text-sm"
-                placeholder="Enter your Gemini API Key"
+                placeholder={`Enter your ${aiVendor} API Key`}
                 value={apiKeyInput}
                 onChange={e => setApiKeyInput(e.target.value)}
                 autoFocus
@@ -226,7 +244,7 @@ export default function SolidityAuditContainer() {
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-0">
-              <span className="font-mono tracking-tighter bg-muted rounded px-2 py-1">API key set (private to your browser)</span>
+              <span className="font-mono tracking-tighter bg-muted rounded px-2 py-1">API key set ({aiVendor}, private to your browser)</span>
               <button
                 className="text-blue-600 hover:underline"
                 onClick={() => setShowKeyInput(true)}
