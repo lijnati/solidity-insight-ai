@@ -1,4 +1,3 @@
-
 // Solidity Audit Tool: Users can paste Solidity code or a GitHub link and get a code audit.
 
 import React, { useState, useRef } from "react";
@@ -6,8 +5,9 @@ import { AuditInput } from "../components/AuditInput";
 import { AuditResults, AuditResult } from "../components/AuditResults";
 import { Rocket } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { requestOpenAIAudit } from "@/utils/openaiAudit";
 import { toast } from "@/hooks/use-toast";
+import { FileText, Github } from "lucide-react";
+import { requestGeminiAudit } from "../utils/geminiAudit";
 
 const DUMMY_AUDIT_RESULT: AuditResult = {
   vulnerabilities: [
@@ -37,7 +37,8 @@ const DUMMY_AUDIT_RESULT: AuditResult = {
 
 function getStoredApiKey() {
   try {
-    return localStorage.getItem("openai-key") || "";
+    // key is now for Gemini, store as "gemini-key"
+    return localStorage.getItem("gemini-key") || "";
   } catch {
     return "";
   }
@@ -45,7 +46,7 @@ function getStoredApiKey() {
 
 function setStoredApiKey(k: string) {
   try {
-    localStorage.setItem("openai-key", k);
+    localStorage.setItem("gemini-key", k);
   } catch {}
 }
 
@@ -58,22 +59,23 @@ export default function Index() {
   const keyInputRef = useRef<HTMLInputElement>(null);
 
   function handleSaveKey() {
-    if (!apiKeyInput.startsWith("sk-") || apiKeyInput.length < 24) {
-      toast({ title: "Invalid OpenAI API Key", description: "Keys start with 'sk-' and should be at least 24 chars.", variant: "destructive" });
+    // Gemini keys can begin with "AI", "GEMINI", etc. Check basic length.
+    if (!apiKeyInput || apiKeyInput.length < 24) {
+      toast({ title: "Invalid Gemini API Key", description: "Gemini API keys are typically at least 24 characters.", variant: "destructive" });
       keyInputRef.current?.focus();
       return;
     }
     setStoredApiKey(apiKeyInput);
     setApiKey(apiKeyInput);
     setShowKeyInput(false);
-    toast({ title: "API Key Saved", description: "You can now audit contracts live!", variant: "default" });
+    toast({ title: "API Key Saved", description: "You can now audit contracts live with Gemini!", variant: "default" });
   }
 
   async function handleAudit({ mode, value }: { mode: "code" | "github"; value: string }) {
     setLoading(true);
     setResult(null);
 
-    // Only support code mode in this initial step for OpenAI
+    // Only support code mode in this step for Gemini
     if (mode !== "code") {
       setTimeout(() => {
         toast({ title: "GitHub input not supported", description: "Live audits only work for pasted code at this time.", variant: "destructive" });
@@ -87,18 +89,18 @@ export default function Index() {
         setResult(DUMMY_AUDIT_RESULT);
         setLoading(false);
       }, 1500);
-      toast({ title: "No API key set", description: "Please enter your OpenAI key above for live auditing.", variant: "destructive" });
+      toast({ title: "No API key set", description: "Please enter your Gemini key above for live auditing.", variant: "destructive" });
       return;
     }
     try {
-      const audit = await requestOpenAIAudit({
+      const audit = await requestGeminiAudit({
         apiKey,
         solidityCode: value
       });
       setResult(audit);
     } catch (e: any) {
       setResult(DUMMY_AUDIT_RESULT); // fallback to dummy
-      toast({ title: "OpenAI Error", description: String(e?.message ?? e), variant: "destructive" });
+      toast({ title: "Gemini Error", description: String(e?.message ?? e), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -122,7 +124,7 @@ export default function Index() {
                 ref={keyInputRef}
                 type="password"
                 className="border rounded px-3 py-2 w-full md:w-96 font-mono"
-                placeholder="Enter your OpenAI API Key (starts with sk-...)"
+                placeholder="Enter your Gemini API Key"
                 value={apiKeyInput}
                 onChange={e => setApiKeyInput(e.target.value)}
                 autoFocus
