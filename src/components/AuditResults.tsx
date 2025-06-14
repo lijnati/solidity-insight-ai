@@ -2,6 +2,7 @@ import React from "react";
 import { AlertTriangle, CheckCircle2, Wrench, Info, Code, Download, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AnnotatedCodeBlock } from "./AnnotatedCodeBlock";
 
 export type Vulnerability = {
   line: number;
@@ -251,9 +252,12 @@ export const AuditResults: React.FC<ExtendedAuditResultsProps> = (props) => {
               Download Report
             </Button>
           </div>
-          <pre className="whitespace-pre-wrap bg-[#21272c] rounded font-mono text-white text-sm p-4 overflow-x-auto">
-            {code}
-          </pre>
+          <AnnotatedCodeBlock
+            code={code}
+            vulnerabilities={result?.vulnerabilities}
+            explanations={result?.explanations}
+            className="mb-4"
+          />
         </Card>
       )}
 
