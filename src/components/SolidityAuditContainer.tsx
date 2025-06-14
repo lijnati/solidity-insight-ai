@@ -1,8 +1,10 @@
+
 import React, { useState, useRef } from "react";
 import { AuditInput } from "./AuditInput";
 import { AuditResults, AuditResult } from "./AuditResults";
-import { Rocket } from "lucide-react";
+import { Rocket, Loader, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { useSaveAudit } from "@/hooks/useAudits";
@@ -18,13 +20,13 @@ const DUMMY_AUDIT_RESULT: AuditResult = {
       line: 7,
       type: "Missing Input Validation",
       message: "The set(uint x) function does not validate input. This can lead to unintended values being stored.",
-      severity: "medium",
+      severity: "medium" as "medium",
     },
     {
       line: 9,
       type: "Visibility",
       message: "The get() function is set as public, which may not be required if used internally.",
-      severity: "low",
+      severity: "low" as "low",
     }
   ],
   explanations: [
@@ -64,8 +66,52 @@ function setStoredModel(vendor: AIVendor, model: string) {
   } catch {}
 }
 
+// types for status UI
+type AuditStatus = "idle" | "loading" | "success" | "error";
+
+// Status Banner Component
+const StatusBanner: React.FC<{ status: AuditStatus, message?: string }> = ({ status, message }) => {
+  if (status === "idle") return null;
+  if (status === "loading") {
+    return (
+      <Alert className="mb-2" variant="default">
+        <Loader className="animate-spin text-blue-500" />
+        <AlertTitle>Auditing in progress...</AlertTitle>
+        <AlertDescription>
+          Please wait while we analyze your contract(s).
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (status === "error") {
+    return (
+      <Alert className="mb-2" variant="destructive">
+        <AlertTriangle className="text-red-500" />
+        <AlertTitle>Audit failed</AlertTitle>
+        <AlertDescription>
+          {message || "There was an error while running your audit. Please try again or check your API key."}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (status === "success") {
+    return (
+      <Alert className="mb-2" variant="default">
+        <CheckCircle2 className="text-green-600" />
+        <AlertTitle>Audit completed</AlertTitle>
+        <AlertDescription>
+          Your audit results are ready below.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  return null;
+};
+
 export default function SolidityAuditContainer() {
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<AuditStatus>("idle");
+  const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [multiResults, setMultiResults] = useState<{ [file: string]: AuditResult } | null>(null);
   const [fileOrder, setFileOrder] = useState<string[]>([]);
@@ -110,24 +156,53 @@ export default function SolidityAuditContainer() {
     toast({ title: "API Key Saved", description: `You can now audit contracts with ${aiVendor}!`, variant: "default" });
   }
 
+  // fixes return types so severity type is always "high"|"medium"|"low"
+  function normalizeAuditResult(obj: any): AuditResult {
+    return {
+      vulnerabilities: (obj.vulnerabilities || []).map((v: any) => ({
+        ...v,
+        severity:
+          v.severity === "high" || v.severity === "medium" || v.severity === "low"
+            ? v.severity
+            : (
+                String(v.severity).toLowerCase().includes("high")
+                  ? "high"
+                  : String(v.severity).toLowerCase().includes("medium")
+                  ? "medium"
+                  : "low"
+              ),
+      })),
+      explanations: obj.explanations || [],
+      suggestedFixes: obj.suggestedFixes || [],
+    };
+  }
+
   // Dynamic auditFn selection
   async function vendorAuditFn({ solidityCode }: { solidityCode: string }): Promise<AuditResult> {
+    let res;
     switch (aiVendor) {
       case "Gemini":
-        return await requestGeminiAudit({ apiKey, solidityCode, model });
+        res = await requestGeminiAudit({ apiKey, solidityCode, model });
+        break;
       case "OpenAI":
-        return await requestOpenAIAudit({ apiKey, solidityCode, model });
+        res = await requestOpenAIAudit({ apiKey, solidityCode, model });
+        break;
       case "Claude":
-        return await requestClaudeAudit({ apiKey, solidityCode, model });
+        res = await requestClaudeAudit({ apiKey, solidityCode, model });
+        break;
       case "Grok":
-        return await requestGrokAudit({ apiKey, solidityCode, model });
+        res = await requestGrokAudit({ apiKey, solidityCode, model });
+        break;
       default:
         return DUMMY_AUDIT_RESULT;
     }
+    return normalizeAuditResult(res);
   }
 
   async function auditGithubRepo(val: string) {
     setLoading(true);
+    setStatus("loading");
+    setStatusMessage(undefined);
     setResult(null);
     setMultiResults(null);
     setFileOrder([]);
@@ -136,6 +211,8 @@ export default function SolidityAuditContainer() {
       if (!solFiles.length) {
         setTimeout(() => {
           setLoading(false);
+          setStatus("error");
+          setStatusMessage("No Solidity files found in this repository.");
           toast({ title: "No Solidity files found", description: "The repository doesn't contain any .sol files.", variant: "destructive" });
         }, 900);
         return;
@@ -145,6 +222,8 @@ export default function SolidityAuditContainer() {
       if (totalLines > 2000) {
         setTimeout(() => {
           setLoading(false);
+          setStatus("error");
+          setStatusMessage("Please audit a repo with fewer than 2000 total lines of Solidity code.");
           toast({ title: "Repo too large", description: "Please audit a repo with fewer than 2000 total lines of Solidity code.", variant: "destructive" });
         }, 800);
         return;
@@ -164,9 +243,13 @@ export default function SolidityAuditContainer() {
       }
       setMultiResults(aggregated);
       setFileOrder(filesWithContent.map((f) => f.path));
+      setStatus("success");
+      setStatusMessage(undefined);
       setLoading(false);
     } catch (e: any) {
       setLoading(false);
+      setStatus("error");
+      setStatusMessage(String(e?.message ?? e));
       toast({ title: "GitHub Audit Error", description: String(e?.message ?? e), variant: "destructive" });
     }
   }
@@ -175,15 +258,21 @@ export default function SolidityAuditContainer() {
     setResult(null);
     setMultiResults(null);
     setFileOrder([]);
+    setStatus("idle");
+    setStatusMessage(undefined);
     if (mode === "github") {
       await auditGithubRepo(value);
       return;
     }
     setLoading(true);
+    setStatus("loading");
+    setStatusMessage(undefined);
     setCodeInput(value);
     if (!apiKey) {
       setTimeout(() => {
         setResult(DUMMY_AUDIT_RESULT);
+        setStatus("error");
+        setStatusMessage("Please enter your API key above for live auditing.");
         setLoading(false);
       }, 1500);
       toast({ title: "No API key set", description: `Please enter your ${aiVendor} key above for live auditing.`, variant: "destructive" });
@@ -192,12 +281,15 @@ export default function SolidityAuditContainer() {
     try {
       const audit = await vendorAuditFn({ solidityCode: value });
       setResult(audit);
-
+      setStatus("success");
+      setStatusMessage(undefined);
       if (user && audit && mode === "code") {
         saveAudit.mutate({ code: value, report: audit });
       }
     } catch (e: any) {
       setResult(DUMMY_AUDIT_RESULT);
+      setStatus("error");
+      setStatusMessage(String(e?.message ?? e));
       toast({ title: `${aiVendor} Error`, description: String(e?.message ?? e), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -254,6 +346,8 @@ export default function SolidityAuditContainer() {
               </button>
             </div>
           )}
+          {/* Status Feedback */}
+          <StatusBanner status={status} message={statusMessage} />
           <AuditInput
             loading={loading}
             onAudit={handleAudit}
