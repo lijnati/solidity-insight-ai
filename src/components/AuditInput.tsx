@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Github } from "lucide-react";
+import CodeEditor from "./CodeEditor";
 
 export type AuditInputProps = {
   loading: boolean;
@@ -50,13 +51,11 @@ export const AuditInput: React.FC<AuditInputProps> = ({ loading, onAudit }) => {
           <TabsTrigger value="github" className="flex items-center gap-1"><Github size={16} />GitHub Link</TabsTrigger>
         </TabsList>
         <TabsContent value="code" className="mt-6">
-          <textarea
-            className="w-full min-h-[300px] max-h-[500px] p-4 resize-y font-mono text-base rounded-lg border bg-background focus:ring-primary focus:border-primary transition"
-            placeholder={CODE_SNIPPET_PLACEHOLDER}
-            value={code}
-            onChange={e => setCode(e.target.value)}
+          <CodeEditor
+            value={code || CODE_SNIPPET_PLACEHOLDER}
+            onChange={setCode}
             disabled={loading}
-            spellCheck={false}
+            height="320px"
           />
         </TabsContent>
         <TabsContent value="github" className="mt-6">
@@ -67,7 +66,7 @@ export const AuditInput: React.FC<AuditInputProps> = ({ loading, onAudit }) => {
             onChange={e => setGithub(e.target.value)}
             disabled={loading}
             type="url"
-            autoFocus
+            autoFocus={mode === "github"}
           />
         </TabsContent>
       </Tabs>
