@@ -1,73 +1,69 @@
-# Welcome to your Lovable project
+# 🔐 Solidity Insight AI
 
-## Project info
+An AI-powered **Smart Contract Auditor** that instantly reviews Solidity code and detects security vulnerabilities using natural language explanations.
 
-**URL**: https://lovable.dev/projects/8543a69f-c3fb-4c72-885d-0d29794412b6
+---
+![screenshot](public/soldityinsight.png)  
 
-## How can I edit this code?
+## 🌐 Live App
 
-There are several ways of editing your application.
+Try it now → [solidity-insight-ai.lovable.app](https://solidity-insight-ai.lovable.app)
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8543a69f-c3fb-4c72-885d-0d29794412b6) and start prompting.
+## 📌 What It Does
 
-Changes made via Lovable will be committed automatically to this repo.
+Just paste your Solidity smart contract into the app, and get:
 
-**Use your preferred IDE**
+- ✅ Vulnerability Detection (e.g., reentrancy, unchecked calls)
+- 🧠 Line-by-line security analysis
+- 💡 Suggested fixes and best practices
+- 📄 Markdown-formatted audit summary (ready to share)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+All within a simple, clean interface.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## 🚀 Tech Stack
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- **Frontend**: Next.js + Tailwind CSS  
+- **Backend**: OpenAI GPT-4o (via API)
+- **Database**: Supabase  
+- **Language**: TypeScript  
+- **Hosting**: Lovable + Vercel  
+- **Dev Style**: Vibe coded 🧃🎧💻
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🧑‍💻 How to Run Locally
+
+1. **Clone the repo**
+   ```
+   git clone https://github.com/lijnati/solidity-insight-ai
+   cd solidity-insight-ai
+   ```
+2. **Install dependencies**
+
+```
+npm install
+
+```
+3. **Run the dev server**
+
+```
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Contributing
+Pull requests welcome! Here's how to help:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Fork the repo
 
-**Use GitHub Codespaces**
+Create your feature branch (git checkout -b feature/YourFeature)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Commit your changes (git commit -m 'Add some feature')
 
-## What technologies are used for this project?
+Push to the branch (git push origin feature/YourFeature)
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/8543a69f-c3fb-4c72-885d-0d29794412b6) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Open a PR
